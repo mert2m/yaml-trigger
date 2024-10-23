@@ -1,44 +1,44 @@
-name: Trigger Shell Script on YAML Update
+name: K8s Image Update Workflow
 
 on:
   push:
     branches:
       - prod
     paths:
-      - 'k8s/prod/*.yaml'
-jobs:
-  run-script:
-    runs-on: ubuntu-latest
+      - 'k8s/prod/**/*.yaml'
+      - 'k8s/stg/**/*.yaml'
 
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Debug - List Changed Files
+      - name: Get changed files
+        id: changed-files
         run: |
-          echo "Changed files:"
-          git diff --name-only HEAD^ HEAD
+          echo "files=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'k8s/\(prod\|stg\)/.*\.yaml$' | tr '\n' ' ')" >> $GITHUB_OUTPUT
 
-      - name: Check for YAML changes
-        id: yaml-check
+      - name: Check if yaml files changed
+        id: check-yaml
         run: |
-          echo "Checking for YAML changes..."
-          if git diff --name-only HEAD^ HEAD | grep -qE 'k8s/(prod|stg)/.*\.yaml'; then
-            echo "YAML files changed"
-            echo "changes=true"
+          CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
+          if [ ! -z "$CHANGED_FILES" ]; then
+            echo "yaml_changed=true" >> $GITHUB_OUTPUT
           else
-            echo "No YAML changes"
-            echo "changes=false"
+            echo "yaml_changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Debug - Show Change Status
+      - name: Make script executable
+        if: steps.check-yaml.outputs.yaml_changed == 'true'
         run: |
-          echo "YAML changes check complete"
-          echo "Change status: ${{ steps.yaml-check.outputs.changes }}"
+          chmod +x ./trigger.sh  # Shell script adını buraya yazın
 
-      - name: Run Shell Script
-        if: steps.yaml-check.outputs.changes == 'true'
+      - name: Run update script
+        if: steps.check-yaml.outputs.yaml_changed == 'true'
         run: |
-          echo "Running shell script..."
-          chmod +x ./trigger.sh
-          ./trigger.sh
+          ./trigger.sh  # Shell script adını buraya yazın
