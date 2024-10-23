@@ -11,29 +11,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Debug - List Changed Files
-      run: git diff --name-only HEAD^ HEAD
+      - name: Debug - List Changed Files
+        run: git diff --name-only HEAD^ HEAD
 
-    - name: Check for YAML changes
-      id: yaml-check
-      run: |
-        echo "Checking for YAML changes..."
-        if git diff --name-only HEAD^ HEAD | grep -qE 'k8s/(prod|stg)/.*\.yaml'; then
-          echo "YAML files changed"
-          echo "changes=true" >> $GITHUB_ENV
-        else
-          echo "No YAML changes"
-          echo "changes=false" >> $GITHUB_ENV
-        fi
+      - name: Check for YAML changes
+        id: yaml-check
+        run: |
+          echo "Checking for YAML changes..."
+          if git diff --name-only HEAD^ HEAD | grep -qE 'k8s/(prod|stg)/.*\.yaml'; then
+            echo "YAML files changed"
+            echo "changes=true" >> $GITHUB_ENV
+          else
+            echo "No YAML changes"
+            echo "changes=false" >> $GITHUB_ENV
+          fi
 
-    - name: Debug - Show Environment Variables
-      run: echo "Changes: ${{ env.changes }}"
+      - name: Debug - Show Environment Variables
+        run: echo "Changes: ${{ env.changes }}"
 
-    - name: Run Shell Script
-      if: env.changes == 'true'
-      run: |
-        chmod +x ./k8s/run-script.sh
-        ./k8s/run-script.sh
+      - name: Run Shell Script
+        if: env.changes == 'true'
+        run: |
+          chmod +x ./k8s/run-script.sh
+          ./k8s/run-script.sh
