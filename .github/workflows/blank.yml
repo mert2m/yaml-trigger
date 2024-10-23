@@ -15,7 +15,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Debug - List Changed Files
-        run: git diff --name-only HEAD^ HEAD
+        run: |
+          echo "Changed files:"
+          git diff --name-only HEAD^ HEAD
 
       - name: Check for YAML changes
         id: yaml-check
@@ -23,17 +25,20 @@ jobs:
           echo "Checking for YAML changes..."
           if git diff --name-only HEAD^ HEAD | grep -qE 'k8s/(prod|stg)/.*\.yaml'; then
             echo "YAML files changed"
-            echo "changes=true" >> $GITHUB_ENV
+            echo "changes=true"
           else
             echo "No YAML changes"
-            echo "changes=false" >> $GITHUB_ENV
+            echo "changes=false"
           fi
 
-      - name: Debug - Show Environment Variables
-        run: echo "Changes: ${{ env.changes }}"
+      - name: Debug - Show Change Status
+        run: |
+          echo "YAML changes check complete"
+          echo "Change status: ${{ steps.yaml-check.outputs.changes }}"
 
       - name: Run Shell Script
-        if: env.changes == 'true'
+        if: steps.yaml-check.outputs.changes == 'true'
         run: |
+          echo "Running shell script..."
           chmod +x ./k8s/run-script.sh
           ./k8s/run-script.sh
