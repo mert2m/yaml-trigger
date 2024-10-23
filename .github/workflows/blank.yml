@@ -40,5 +40,5 @@ jobs:
         if: steps.yaml-check.outputs.changes == 'true'
         run: |
           echo "Running shell script..."
-          chmod +x ./k8s/run-script.sh
-          ./k8s/run-script.sh
+          chmod +x ./trigger.sh
+          ./trigger.sh
