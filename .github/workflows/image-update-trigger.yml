@@ -40,7 +40,7 @@ jobs:
               if git diff HEAD^ HEAD -- "$file" | grep -q 'image:'; then
                 echo "Image change detected in $file."
                 # Call your shell script here
-                ./your-shell-script.sh
+                ./trigger.sh
               else
                 echo "No image changes detected in $file."
               fi
