@@ -4,49 +4,45 @@ on:
   push:
     branches:
       - prod
-      - stg
-      - main
+      - main  # Add other branches if needed
 
 jobs:
   detect-image-changes:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Set up Git
-        run: git fetch --all
+        run: |
+          git fetch --prune --unshallow
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
 
-      - name: Detect image changes in YAML files
+      - name: Check for image changes
         run: |
           echo "Starting image change detection..."
-
-          # Get current branch
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          echo "Current branch: $CURRENT_BRANCH"
-
-          # Find changed files in k8s/prod or k8s/stg directories
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
-          echo "Changed YAML files:"
-          echo "$CHANGED_FILES"
-
-          IMAGE_CHANGED=false
-
-          for file in $CHANGED_FILES; do
-            echo "Checking file: $file"
-            # Check if there is an image line change
-            if git diff HEAD^ HEAD "$file" | grep -E '^\+.*image:'; then
-              echo "Image change detected in $file"
-              IMAGE_CHANGED=true
-            fi
-          done
-
-          if [ "$IMAGE_CHANGED" = true ]; then
-            echo "Triggering the shell script due to image change."
-            ./your-shell-script.sh
+          echo "Current branch: $(git branch --show-current)"
+          
+          # Get the changed YAML files
+          changed_files=$(git diff HEAD^ HEAD --name-only -- *.yaml prod/*.yaml)
+          
+          if [ -z "$changed_files" ]; then
+            echo "No YAML files changed."
           else
-            echo "No image changes detected."
+            echo "Changed YAML files:"
+            echo "$changed_files"
+            
+            # Check for image changes in the changed YAML files
+            for file in $changed_files; do
+              echo "Checking $file for image changes..."
+              if git diff HEAD^ HEAD -- "$file" | grep -q 'image:'; then
+                echo "Image change detected in $file."
+                # Call your shell script here
+                ./your-shell-script.sh
+              else
+                echo "No image changes detected in $file."
+              fi
+            done
           fi
