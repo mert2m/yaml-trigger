@@ -17,11 +17,22 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Fetch all branches
+        run: |
+          git fetch --all
+
       - name: Check for image changes
         id: check-changes
         run: |
           echo "Starting image change detection..."
+          
+          # prod ve main branch'lerinin merge base commit'lerini kullanarak farkları bul
           CHANGED_FILES=$(git diff --name-only $(git merge-base origin/prod HEAD) HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
+          CHANGED_FILES_MAIN=$(git diff --name-only $(git merge-base origin/main HEAD) HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
+
+          # İki branch'in değişen dosyalarını birleştir
+          CHANGED_FILES=$(echo -e "$CHANGED_FILES\n$CHANGED_FILES_MAIN" | sort -u)
+
           echo "Changed YAML files:"
           echo "$CHANGED_FILES"
 
@@ -37,7 +48,7 @@ jobs:
               echo "❌ No image change in $file"
             fi
           done
-          
+
           echo "Final result - Image changed: $IMAGE_CHANGED"
           echo "has_image_changes=$IMAGE_CHANGED" >> $GITHUB_OUTPUT
 
