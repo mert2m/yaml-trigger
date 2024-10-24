@@ -3,8 +3,8 @@ name: Image Update Detection
 on:
   push:
     branches:
-      - prod
-      - main
+      - main 
+      - prod # main branch'te çalışacak şekilde değiştirildi
     paths:
       - '**/*.yaml'
       - '**/*.yaml'
@@ -16,15 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Son 2 commit'i al (değişiklikleri karşılaştırmak için)
+          fetch-depth: 2
 
       - name: Check for image changes
         id: check-changes
         run: |
-          # Son commit'teki değişiklikleri al
           CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
           
-          # Her değişen dosyada image değişikliği var mı kontrol et
           IMAGE_CHANGED=false
           for file in $CHANGED_FILES; do
             if git diff HEAD^ HEAD "$file" | grep -q '^[+-].*image:'; then
@@ -35,12 +33,15 @@ jobs:
           done
           
           echo "has_image_changes=$IMAGE_CHANGED" >> $GITHUB_OUTPUT
+          
+          # Debug bilgisi
+          echo "Debug Information:"
+          echo "Changed files: $CHANGED_FILES"
+          echo "Image changed: $IMAGE_CHANGED"
 
-      - name: Run shell script if image changed
+      - name: Run trigger script
         if: steps.check-changes.outputs.has_image_changes == 'true'
         run: |
-          # Shell script'e execute yetkisi ver
+          echo "Running trigger.sh script..."
           chmod +x ./trigger.sh
-          
-          # Script'i çalıştır
           ./trigger.sh
