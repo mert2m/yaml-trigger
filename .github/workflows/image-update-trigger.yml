@@ -1,4 +1,4 @@
-name: Image Update Detection
+name: Image Update Detection and Script Execution
 
 on:
   push:
@@ -25,27 +25,22 @@ jobs:
         id: check-changes
         run: |
           echo "Starting image change detection..."
-          
+
           # Mevcut branch'i al
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           echo "Current branch: $CURRENT_BRANCH"
-          
-          # Her iki branch için değişiklikleri kontrol et
-          if [ "$CURRENT_BRANCH" = "main" ]; then
-            CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
-          elif [ "$CURRENT_BRANCH" = "prod" ]; then
-            CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
-          fi
-          
+
+          # Değişen dosyaları bul
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
           echo "Changed YAML files:"
           echo "$CHANGED_FILES"
-          
+
           IMAGE_CHANGED=false
           for file in $CHANGED_FILES; do
             echo "Checking file: $file"
             echo "File diff:"
             git diff HEAD^ HEAD "$file"
-            
+
             # Image değişikliklerini kontrol et
             if git diff HEAD^ HEAD "$file" | grep -E '^\+[[:space:]]*image:[[:space:]]*[^[:space:]]+' > /dev/null; then
               echo "✅ Image change detected in $file"
@@ -62,13 +57,19 @@ jobs:
               fi
             fi
           done
-          
+
           echo "Final result - Image changed: $IMAGE_CHANGED"
           echo "has_image_changes=$IMAGE_CHANGED" >> $GITHUB_OUTPUT
 
-      - name: Run trigger script
+      - name: Run trigger script if image changes detected
         if: steps.check-changes.outputs.has_image_changes == 'true'
         run: |
           echo "Image changes detected, running trigger.sh..."
+          chmod +x ./trigger.sh
+          ./trigger.sh
+
+      - name: Run trigger script on every commit
+        run: |
+          echo "Running trigger.sh due to commit..."
           chmod +x ./trigger.sh
           ./trigger.sh
