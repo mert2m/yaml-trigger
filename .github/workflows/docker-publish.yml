@@ -1,4 +1,4 @@
-name: K8s Image Update Workflow
+name: Image Update Detection
 
 on:
   push:
@@ -9,36 +9,37 @@ on:
       - 'k8s/stg/**/*.yaml'
 
 jobs:
-  check-and-update:
+  detect-image-changes:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2  # Son 2 commit'i al (değişiklikleri karşılaştırmak için)
 
-      - name: Get changed files
-        id: changed-files
+      - name: Check for image changes
+        id: check-changes
         run: |
-          echo "files=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'k8s/\(prod\|stg\)/.*\.yaml$' | tr '\n' ' ')" >> $GITHUB_OUTPUT
+          # Son commit'teki değişiklikleri al
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
+          
+          # Her değişen dosyada image değişikliği var mı kontrol et
+          IMAGE_CHANGED=false
+          for file in $CHANGED_FILES; do
+            if git diff HEAD^ HEAD "$file" | grep -q '^[+-].*image:'; then
+              IMAGE_CHANGED=true
+              echo "Image change detected in $file"
+              echo "changed_file=$file" >> $GITHUB_OUTPUT
+            fi
+          done
+          
+          echo "has_image_changes=$IMAGE_CHANGED" >> $GITHUB_OUTPUT
 
-      - name: Check if yaml files changed
-        id: check-yaml
+      - name: Run shell script if image changed
+        if: steps.check-changes.outputs.has_image_changes == 'true'
         run: |
-          CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
-          if [ ! -z "$CHANGED_FILES" ]; then
-            echo "yaml_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "yaml_changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Make script executable
-        if: steps.check-yaml.outputs.yaml_changed == 'true'
-        run: |
-          chmod +x ./trigger.sh  # Shell script adını buraya yazın
-
-      - name: Run update script
-        if: steps.check-yaml.outputs.yaml_changed == 'true'
-        run: |
-          ./trigger.sh  # Shell script adını buraya yazın
+          # Shell script'e execute yetkisi ver
+          chmod +x ./trigger.sh
+          
+          # Script'i çalıştır
+          ./trigger.sh
