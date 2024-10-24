@@ -5,8 +5,8 @@ on:
     branches:
       - prod
     paths:
-      - 'k8s/prod/**/*.yaml'
-      - 'k8s/stg/**/*.yaml'
+      - '**/*.yaml'
+      - '**/*.yaml'
 
 jobs:
   detect-image-changes:
