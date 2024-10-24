@@ -7,7 +7,6 @@ on:
       - prod
     paths:
       - '**/*.yaml'
-      - '**/*.yaml'
 
 jobs:
   detect-image-changes:
@@ -22,23 +21,15 @@ jobs:
         id: check-changes
         run: |
           echo "Starting image change detection..."
-          
-          # Değişen dosyaları bul
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
+          CHANGED_FILES=$(git diff --name-only $(git merge-base origin/prod HEAD) HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
           echo "Changed YAML files:"
           echo "$CHANGED_FILES"
-          
-          # Her dosya için detaylı kontrol
+
           IMAGE_CHANGED=false
           for file in $CHANGED_FILES; do
             echo "Checking file: $file"
-            
-            # Dosyanın diff'ini göster
-            echo "Diff for $file:"
             git diff HEAD^ HEAD "$file"
-            
-            # Image değişikliklerini daha geniş bir pattern ile ara
-            if git diff HEAD^ HEAD "$file" | grep -E '^\+.*[[:space:]]image:[[:space:]]*' > /dev/null; then
+            if git diff HEAD^ HEAD "$file" | grep -E '^\+.*image:[[:space:]]*(.+)' > /dev/null; then
               echo "✅ Image change detected in $file"
               IMAGE_CHANGED=true
               echo "changed_file=$file" >> $GITHUB_OUTPUT
@@ -56,14 +47,3 @@ jobs:
           echo "Image changes detected, running trigger.sh..."
           chmod +x ./trigger.sh
           ./trigger.sh
-
-      - name: Debug information
-        run: |
-          echo "Debug Output:"
-          echo "has_image_changes: ${{ steps.check-changes.outputs.has_image_changes }}"
-          echo "Current directory contents:"
-          ls -la
-          echo "Git status:"
-          git status
-          echo "Last commit:"
-          git log -1
