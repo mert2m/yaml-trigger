@@ -25,7 +25,7 @@ jobs:
         id: check-changes
         run: |
           echo "Starting image change detection..."
-          
+
           # prod ve main branch'lerinin merge base commit'lerini kullanarak farkları bul
           CHANGED_FILES=$(git diff --name-only $(git merge-base origin/prod HEAD) HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
           CHANGED_FILES_MAIN=$(git diff --name-only $(git merge-base origin/main HEAD) HEAD | grep -E 'k8s/(prod|stg)/.+\.yaml$' || true)
@@ -39,8 +39,9 @@ jobs:
           IMAGE_CHANGED=false
           for file in $CHANGED_FILES; do
             echo "Checking file: $file"
-            git diff HEAD^ HEAD "$file"
-            if git diff HEAD^ HEAD "$file" | grep -E '^\+.*image:[[:space:]]*(.+)' > /dev/null; then
+
+            # Diff içindeki +image satırlarını bulmak için doğru pattern'i kullan
+            if git diff $(git merge-base origin/prod HEAD) HEAD "$file" | grep -E '^\+.*image:[[:space:]]*[^[:space:]]+' > /dev/null; then
               echo "✅ Image change detected in $file"
               IMAGE_CHANGED=true
               echo "changed_file=$file" >> $GITHUB_OUTPUT
