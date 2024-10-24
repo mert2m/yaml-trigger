@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: mert:99
+        image: deneme:1
         ports:
         - containerPort: 80
