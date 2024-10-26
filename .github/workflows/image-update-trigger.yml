@@ -1,48 +1,56 @@
-name: Detect Image Changes
+name: Deployment Files Check
 
 on:
   push:
     branches:
+      - main
       - prod
-      - main  # Add other branches if needed
+    paths:
+      - '**/*deployment*.yml'
+      - '**/*deployment*.yaml'
+  pull_request:
+    branches:
+      - main
+      - prod
+    paths:
+      - '**/*deployment*.yml'
+      - '**/*deployment*.yaml'
 
 jobs:
-  detect-image-changes:
+  deployment-check:
     runs-on: ubuntu-latest
-
+    
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Set up Git
-        run: |
-          git fetch --prune --unshallow
-          git config user.name "GitHub Action"
-          git config user.email "action@github.com"
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v35
+        with:
+          files: |
+            **/*deployment*.yml
+            **/*deployment*.yaml
 
-      - name: Check for image changes
+      - name: List changed deployment files
         run: |
-          echo "Starting image change detection..."
-          echo "Current branch: $(git branch --show-current)"
-          
-          # Get the changed YAML files
-          changed_files=$(git diff HEAD^ HEAD --name-only -- *.yaml prod/*.yaml)
-          
-          if [ -z "$changed_files" ]; then
-            echo "No YAML files changed."
-          else
-            echo "Changed YAML files:"
-            echo "$changed_files"
-            
-            # Check for image changes in the changed YAML files
-            for file in $changed_files; do
-              echo "Checking $file for image changes..."
-              if git diff HEAD^ HEAD -- "$file" | grep -q 'image:'; then
-                echo "Image change detected in $file."
-                # Call your shell script here
-                ./trigger.sh
-              else
-                echo "No image changes detected in $file."
-              fi
-            done
-          fi
+          echo "Changed deployment files:"
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "$file"
+          done
+
+      - name: Print current branch
+        run: |
+          echo "Running on branch: ${{ github.ref }}"
+
+      - name: Validate YAML syntax
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Validating $file"
+            yamllint "$file"
+          done
+        continue-on-error: true
