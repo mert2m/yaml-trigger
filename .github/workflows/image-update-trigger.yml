@@ -1,0 +1,57 @@
+name: Deployment Files Check
+
+on:
+  push:
+    branches:
+      - main
+      - prod
+    paths:
+      - '**/*deployment*.yml'
+      - '**/*deployment*.yaml'
+  pull_request:
+    branches:
+      - main
+      - prod
+    paths:
+      - '**/*deployment*.yml'
+      - '**/*deployment*.yaml'
+
+jobs:
+  deployment-check:
+    runs-on: ubuntu-latest
+    
+    # Branch kontrolü ekstra güvenlik için
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v35
+        with:
+          files: |
+            **/*deployment*.yml
+            **/*deployment*.yaml
+
+      - name: List changed deployment files
+        run: |
+          echo "Changed deployment files:"
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "$file"
+          done
+
+      - name: Print current branch
+        run: |
+          echo "Running on branch: ${{ github.ref }}"
+
+      - name: Validate YAML syntax
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Validating $file"
+            yamllint "$file"
+          done
+        continue-on-error: true
